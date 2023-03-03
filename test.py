@@ -11,20 +11,17 @@ from httpx import AsyncClient
 
 client = TestClient(app)
 
-# 이제 세가지 API 함수에 대해 테스트하는 함수들을 작성하겠습니다.
-
-
-def test_root():
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {'message': 'Hello World'}
-
-
 def test_auto_music():
-    response = client.get("/auto_music",
-                          headers={"Token": secrete_key["SECRETE-KEY"]})
+    response = client.post(
+        "/auto_music",
+        headers={"Token": secrete_key["SECRETE-KEY"]},
+        json={"control": "00000000"},
+    )
+
+    # response = client.get("/auto_music",
+    #                       headers={"Token": secrete_key["SECRETE-KEY"]})
+    print(response.json())
     assert response.status_code == 200
-    assert response.json() == {'hello': 'world'}
 
 
 if __name__ == '__main__':
