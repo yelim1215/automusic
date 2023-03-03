@@ -58,8 +58,8 @@ async def root():
 @app.get("/auto_music")
 async def auto_music(control: int, token: str = Depends(api_key_header)):
     # control must be : 00000000 (1/0, length : 8)
-    # main({'checkpoint_dir': '/home/dani/workspace/checkpoint_best.pt'}, {'output_dir': 'danni', 'bpm': 70, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
-    #                                                                     'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': 3, 'top_k': 32, 'temperature': 0.95})
+    main({'checkpoint_dir': '/home/dani/workspace/checkpoint_best.pt'}, {'output_dir': 'danni', 'bpm': 70, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
+                                                                         'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': 3, 'top_k': 32, 'temperature': 0.95})
     if token != secrete_key["SECRETE-KEY"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
     uid = uuid.uuid4()
