@@ -1,18 +1,18 @@
 import os
 from commu.preprocessor.utils import constants
 from commu.midi_generator.generate_pipeline import MidiGenerationPipeline
+from inference import inference
 from typing import Dict, List
 import argparse
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import APIKeyHeader
 import uuid
-import pickle
 from key import secrete_key
 from pydantic import BaseModel
 from fastapi import FastAPI, Header, HTTPException, Response
-from fastapi.responses import FileResponse
+from fastapi.responses import JSONResponse
 import shutil
-from inst import InstrumentChange
+import base64
 
 app = FastAPI()
 api_key_header = APIKeyHeader(name="Token")
@@ -50,22 +50,15 @@ Package Document: https://mido.readthedocs.io/en/latest/
 
 def merge_midi(files: "List[str]") -> mido.MidiFile:
 
-    # 모든 미디 파일 읽기
-
     midis = [mido.MidiFile(path) for path in files]
 
     if not midis:
 
         raise ValueError("파일 목록이 비었습니다.")
-
     # 빈 미디 파일 생성
-
     mergedMidi = mido.MidiFile()
-
     mergedMidi.ticks_per_beat = midis[0].ticks_per_beat
-
     mergedMidi.tracks = sum((midi.tracks for midi in midis), start=[])
-
     return mergedMidi
 
 
@@ -110,47 +103,61 @@ class Item(BaseModel):
 
 class responseItem(BaseModel):
     out_list: List[str]
+from fastapi import FastAPI, File, UploadFile
+import io
+import requests
+
+app = FastAPI()
+
+@app.post("/upload_midi/")
+async def upload_midi(file: UploadFile = File(...)):
+    contents = await file.read()
+    files = {"file": ("midi_file.mid", io.BytesIO(contents))}
+    response = requests.post("http://<java_spring_backend_url>/save_midi/", files=files)
+    return {"status": response.status_code}
+
 
 @app.get("/midi")
-def get_midi(response: Response):
-    # MIDI 파일을 읽어들입니다.
-    with open("/root/workspace/automusic/generated/3e0586c2-4bd9-4195-afa4-0ecdd29b5187_1.mid", "rb") as f:
-        midi_data = f.read()
+async def send_midi_file():
+    # MIDI 파일을 읽어옵니다.
+    with open(r'C:\Users\zing1\workspace\automusic\generated\2c563128-5f99-48e5-907b-e48e4ffdf96e_0.mid', 'rb') as file:
+        midi_data = file.read()
 
-    # MIDI 데이터를 직렬화합니다.
-    serialized_midi = pickle.dumps(midi_data)
+    # 직렬화된 데이터로 변환합니다.
+    b64_midi_data = base64.b64encode(midi_data).decode('utf-8')
 
-    # HTTP 응답 본문으로 직렬화된 MIDI 데이터를 설정합니다.
-    response.headers["Content-Type"] = "application/octet-stream"
-    response.headers["Content-Disposition"] = "attachment; filename=3e0586c2-4bd9-4195-afa4-0ecdd29b5187_1.mid"
-    response.content = serialized_midi
+    # Java Spring 백엔드로 응답을 보냅니다.
+    return JSONResponse(content={'midi_data': b64_midi_data})
 
-    return response
-
-@app.post("/auto_music")#, response_model=responseItem)
-async def auto_music(response: Response, token: str = Depends(api_key_header)):
+@app.post("/auto_music", response_model=responseItem)
+async def auto_music(item: Item, token: str = Depends(api_key_header)):
     # control must be : 00000000 (1/0, length : 8)
-    ex_inst = ["Acoustic Grand Piano", "Cello", "Lead 8 (bass + lead)", "Synth Drum"]
-    
+    print(item.control)
     uid = str(uuid.uuid4())
-
+    opt = 3
     NUM_GEN = 2
-    # 4/4 3/4 6/8 12/8
-    main({'checkpoint_dir': '/root/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': 70, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
-                                                                         'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': '/root/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': 70, 'audio_key': 'bminor', 'time_signature': '4/4', 'pitch_range': 'mid_low', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
-    #                                                                     'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': '/root/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': 70, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'pad', 'rhythm': 'standard',
-    #                                                                     'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': '/root/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': 70, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'riff', 'rhythm': 'standard',
-    #                                                                     'min_velocity': 60, 'max_velocity': 80, 'chord_progression': 'Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E-Am-Am-Am-Am-Am-Am-Am-Am-G-G-G-G-G-G-G-G-F-F-F-F-F-F-F-F-E-E-E-E-E-E-E-E', 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    
-           
+    infer = inference()
+    seq = infer.main(opt).replace("maj","maj7").replace("maj76","maj7").replace("maj77","maj7")
+    if (opt == 1 or opt == 2):
+        bpm = 50
+        min_v = 40
+        max_v = 45
+    else:
+        bpm = 70
+        min_v = 60
+        max_v = 80
+    main({'checkpoint_dir': r'C:\Users\zing1\workspace\automusic\checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
+                                                                         'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression':seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    main({'checkpoint_dir': r'C:\Users\zing1\workspace\automusic\checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'bminor', 'time_signature': '4/4', 'pitch_range': 'mid_low', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
+                                                                         'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    main({'checkpoint_dir': r'C:\Users\zing1\workspace\automusic\checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'pad', 'rhythm': 'standard',
+                                                                         'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    main({'checkpoint_dir': r'C:\Users\zing1\workspace\automusic\checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '4/4', 'pitch_range': 'mid_high', 'num_measures': 8.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'riff', 'rhythm': 'standard',
+                                                                         'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
     midi_path_list = []
     out_midi_list = []
 
     uid_directory = os.listdir(uid)
-    inst_c = InstrumentChange()
 
     for sub_d in uid_directory:
         sub_d = uid + "/" + sub_d
@@ -163,9 +170,8 @@ async def auto_music(response: Response, token: str = Depends(api_key_header)):
     for midx in range(NUM_GEN):
         output_list = []
         out_file_name = "generated/"+"{}_{}.mid".format(uid, midx)
-    
-        for idx, m in enumerate(midi_path_list):
-            inst_c.change_instrument(m[midx], ex_inst[idx])
+
+        for m in midi_path_list:
             output_list.append(m[midx])
         save_midi(
             out_file_name,
@@ -176,28 +182,7 @@ async def auto_music(response: Response, token: str = Depends(api_key_header)):
 
     if os.path.exists(uid):
         shutil.rmtree(uid)
-    # 미디파일을 연 후 전송 처리
 
     if token != secrete_key["SECRETE-KEY"]:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
-    
-    with open("/root/workspace/automusic/generated/3e0586c2-4bd9-4195-afa4-0ecdd29b5187_1.mid", "rb") as f:
-        midi_data = f.read()
-    print(midi_data)
-    # MIDI 데이터를 직렬화합니다.
-    serialized_midi = pickle.dumps(midi_data)
-
-    # HTTP 응답 본문으로 직렬화된 MIDI 데이터를 설정합니다.
-    response.headers["Content-Type"] = "audio/midi"
-    response.headers["Content-Disposition"] = "attachment; filename=/root/workspace/automusic/generated/3e0586c2-4bd9-4195-afa4-0ecdd29b5187_1.mid"
-    response.content = serialized_midi
-    print(response.content)
-    serialized_midi = response.content
-
-    # 추출한 MIDI 데이터를 역직렬화합니다.
-    midi_data = pickle.loads(serialized_midi)
-    file_path = "hoon.mid"
-    # 역직렬화된 MIDI 데이터를 파일로 저장합니다.
-    with open(file_path, "wb") as f:
-        f.write(midi_data)
-    return response
+    return {"out_list": out_midi_list}

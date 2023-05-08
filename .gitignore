@@ -177,3 +177,7 @@ sad/
 checkpoint_best.pt
 hoon.mid
 out.mid
+chords.py
+chord_dict.py
+trained_model
+data_process/dataset

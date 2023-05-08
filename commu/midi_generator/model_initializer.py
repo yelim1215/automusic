@@ -43,7 +43,7 @@ class ModelInitializeTask:
     def initialize_model(self, training_cfg, model_fp):
         perform_vocab = BaseVocab()
         model = MemTransformerLM(training_cfg, perform_vocab)
-        checkpoint = torch.load(model_fp)
+        checkpoint = torch.load(model_fp, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model"], strict=False)
         model = model.to(self.device)
         model.eval()
