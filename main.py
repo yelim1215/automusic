@@ -111,34 +111,16 @@ import requests
 
 app = FastAPI()
 
-@app.post("/upload_midi/")
-async def upload_midi(file: UploadFile = File(...)):
-    contents = await file.read()
-    files = {"file": ("midi_file.mid", io.BytesIO(contents))}
-    response = requests.post("http://<java_spring_backend_url>/save_midi/", files=files)
-    return {"status": response.status_code}
-
-
-@app.get("/midi")
-async def send_midi_file():
-    # MIDI 파일을 읽어옵니다.
-    with open(r'C:/Users/zing1/workspace/automusic/generated/c5799f49-a2cf-4aaa-a4a2-b122018962c4_0.mid', 'rb') as file:
-        midi_data = file.read()
-
-    # 직렬화된 데이터로 변환합니다.
-    b64_midi_data = base64.b64encode(midi_data).decode('utf-8')
-
-    # Java Spring 백엔드로 응답을 보냅니다.
-    return JSONResponse(content={'midi_data': b64_midi_data})
-
-@app.post("/auto_music")#, response_model=responseItem)
+@app.post("/auto_music")
 async def auto_music(response: Response, token: str = Depends(api_key_header)):
     # control must be : 00000000 (1/0, length : 8)
-    #1. 0 긍정 1 부정
-    #2. 0 -> 0 : 첫번쨰 경쾌, 1 :차분
-    #2. 1 -> 0 : 우울한 음악, 1 : 긴장되는 음악
-    #3. 악기 5개
-    
+    #0. 0 긍정 1 부정
+    #1. 0 -> 0 : 첫번쨰 경쾌, 1 :차분
+    #1. 1 -> 0 : 우울한 음악, 1 : 긴장되는 음악
+    #2. 악기 5개 (str)
+    #3. bpm int (50 ~ 100 10단위)
+    #4. 음의높낮이 (0, 1, 2)
+
     instch = InstrumentChange()
     uid = str(uuid.uuid4())
     opt = 3
@@ -164,6 +146,7 @@ async def auto_music(response: Response, token: str = Depends(api_key_header)):
             bpm = 80
             audio_key = "aminor"
             pitch = "mid_low"
+    
     main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
                                                                          'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression':seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
     #main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': 'mid_low', 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
