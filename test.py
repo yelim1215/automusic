@@ -29,19 +29,6 @@ def test_read_midi():
 import pickle
 import requests
 
-# MIDI 파일을 다운로드 받아서 로컬에 저장하는 함수
-def save_midi_file(response, file_path):
-    # HTTP 응답 본문에서 직렬화된 MIDI 데이터를 추출합니다.
-    serialized_midi = response.content
-
-    # 추출한 MIDI 데이터를 역직렬화합니다.
-    midi_data = pickle.loads(serialized_midi)
-
-    # 역직렬화된 MIDI 데이터를 파일로 저장합니다.
-    with open(file_path, "wb") as f:
-        f.write(midi_data)
-
-# MIDI 파일 다운로드 테스트 코드
 def test_download_midi_file():
     # FastAPI 서버에서 MIDI 파일을 다운로드 받습니다.
     #url = "http://localhost:8000/midi"

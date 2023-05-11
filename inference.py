@@ -54,7 +54,7 @@ class inference:
 
         one_hot_vec_size = y_train.shape[1]
         return x_train, y_train, one_hot_vec_size, max_idx_value
-    def main(self, opt, pred_count=8):
+    def main(self, opt, pred_count=16):
         np.random.seed(5)
         randomseq, seq = self.init_seq(opt)
         x_train, y_train, one_hot_vec_size, max_idx_value = self.get_dataset(seq)
@@ -77,8 +77,8 @@ class inference:
             seq_in.pop(0)
 
         model.reset_states()
-        print("".join([(i+"-") * 8 for i in seq_out[3:-1]])[:-1])
-        return "".join([(i+"-") * 8 for i in seq_out[3:-1]])[:-1]
+        print("".join([(i+"-") * 6 for i in seq_out[3:-1]])[:-1])
+        return "".join([(i+"-") * 6 for i in seq_out[3:-1]])[:-1]
 
 if __name__ =='__main__':
     infer = inference()
