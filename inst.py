@@ -58,7 +58,11 @@ class InstrumentChange:
         pass
     def change_instrument(self, file_name, instrument):
         pm = pretty_midi.PrettyMIDI(file_name)
-        program = pretty_midi.instrument_name_to_program(instrument)
+        if type(instrument) == int:
+            program = instrument
+            instrument = pretty_midi.program_to_instrument_name(program)
+        elif type(instrument) == str:
+            program = pretty_midi.instrument_name_to_program(instrument)
         inst = pretty_midi.Instrument(program=program, is_drum=False, name=instrument)
         inst.notes.extend(pm.instruments[0].notes)
         pm.instruments.append(inst)

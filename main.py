@@ -9,7 +9,7 @@ from fastapi.security import APIKeyHeader
 import uuid
 from key import secrete_key
 from pydantic import BaseModel
-from fastapi import FastAPI, Header, HTTPException, Response
+from fastapi import FastAPI, Header, HTTPException, Response, Request
 from fastapi.responses import JSONResponse
 import shutil
 import base64
@@ -18,14 +18,6 @@ import pickle
 
 app = FastAPI()
 api_key_header = APIKeyHeader(name="Token")
-
-"""
-table name : metagenerator
-key : unique 한 key
-song : 노래 경로
-mood : list 형태로 저장
-"""
-
 
 try:
 
@@ -36,17 +28,13 @@ except ImportError as error:
     raise ImportError(
 
         """
+        `pip install mido`를 수행해서 패키지를 설치하세요.
 
+        Package Github: https://github.com/mido/mido
 
+        Package Document: https://mido.readthedocs.io/en/latest/
 
-`pip install mido`를 수행해서 패키지를 설치하세요.
-
-Package Github: https://github.com/mido/mido
-
-Package Document: https://mido.readthedocs.io/en/latest/
-
-"""
-
+        """
     ) from error
 
 
@@ -109,59 +97,102 @@ from fastapi import FastAPI, File, UploadFile
 import io
 import requests
 
+class RequestItem(BaseModel):
+    atDetail: str
+    atmosphere: str
+    bpm: str
+    highlow: str
+    instrument: str
+
+
 app = FastAPI()
 
+@app.post("/process")
+def process_request(item: RequestItem, token: str):
+    # Token 확인
+    if token != "blabla":
+        return {"error": "Invalid token"}
+    
+    # 요청 처리
+    # 여기서는 간단히 요청을 그대로 반환하겠습니다.
+    return item.dict()
+    
 @app.post("/auto_music")
-async def auto_music(response: Response, token: str = Depends(api_key_header)):
+async def auto_music(request:Request, token: str = Depends(api_key_header)):
     # control must be : 00000000 (1/0, length : 8)
     #0. 0 긍정 1 부정
     #1. 0 -> 0 : 첫번쨰 경쾌, 1 :차분
     #1. 1 -> 0 : 우울한 음악, 1 : 긴장되는 음악
     #2. 악기 5개 (str)
     #3. bpm int (50 ~ 100 10단위)
-    #4. 음의높낮이 (0, 1, 2)
+    #4. 음의높낮이 (0, 1, 2 : 낮음)
+    at_cat = {0:[3,2], 1:[1,0]}
+    #content
+    request_body = await request.json()
+    atDetail = request_body['atDetail']
+    atmosphere = request_body['atmosphere']
+    opt = at_cat[atmosphere][atDetail]
+    inst = request_body['instrument']
+    inst1 = inst['inst1']
+    inst2 = inst['inst2']
+    inst3 = inst['inst3']
+    inst4 = inst['inst4']
+    inst5 = inst['inst5']
+    bpm = request_body['bpm']
+    pitch = request_body['highlow']
+    if pitch == 0:
+        pitch = "mid_low"
+    if pitch == 1:
+        pitch = "mid_high"
 
     instch = InstrumentChange()
     uid = str(uuid.uuid4())
-    opt = 3
+    #opt = int(request_body['atDetail'])
     NUM_GEN = 2
     infer = inference()
     seq = infer.main(opt).replace("maj","maj7").replace("maj76","maj7").replace("maj77","maj7")
     if (opt == 1 or opt == 2):
-        bpm = 50
+        if bpm == None:
+            bpm = 50
+        if pitch == None:
+            pitch = "mid_high"
         min_v = 40
         max_v = 45
-        pitch = "mid_high"
         audio_key = "amajor"
         if(opt == 1):
+            if pitch == None:
+                pitch = "mid_low"
             audio_key = "aminor"
-            pitch = "mid_low"
     else:
-        bpm = 70
         min_v = 60
         max_v = 80
-        pitch = "mid_high"
+        if bpm == None:
+            bpm = 70
+        if pitch == None:
+            pitch = "mid_high"
         audio_key = "amajor"
         if(opt == 0):
-            bpm = 80
+            if bpm == None:
+                bpm = 70
+            if pitch == None:
+                pitch = "mid_low"
             audio_key = "aminor"
-            pitch = "mid_low"
-    
+
     main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
                                                                          'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression':seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': 'mid_low', 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
-    #                                                                     'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression':seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'bminor', 'time_signature': '3/4', 'pitch_range': 'mid_low', 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'accompaniment', 'rhythm': 'standard',
-    #                                                                     'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'pad', 'rhythm': 'standard',
-    #                                                                     'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
-    #main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'riff', 'rhythm': 'standard',
-    #                                                                     'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    # main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': 'mid_low', 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'main_melody', 'rhythm': 'standard',
+    #                                                                      'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression':seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    # main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'bminor', 'time_signature': '3/4', 'pitch_range': 'mid_low', 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'accompaniment', 'rhythm': 'standard',
+    #                                                                      'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    # main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'pad', 'rhythm': 'standard',
+    #                                                                      'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
+    # main({'checkpoint_dir': r'C:/Users/zing1/workspace/automusic/checkpoint_best.pt'}, {'output_dir': uid, 'bpm': bpm, 'audio_key': 'aminor', 'time_signature': '3/4', 'pitch_range': pitch, 'num_measures': 16.0, 'inst': 'acoustic_piano', 'genre': 'newage', 'track_role': 'riff', 'rhythm': 'standard',
+    #                                                                      'min_velocity': min_v, 'max_velocity': max_v, 'chord_progression': seq, 'num_generate': NUM_GEN, 'top_k': 32, 'temperature': 0.95})
     midi_path_list = []
     out_midi_list = []
 
     uid_directory = os.listdir(uid)
-    inst_list = ["Acoustic Grand Piano","Acoustic Grand Piano","Synth Strings 1","Electric Guitar (jazz)","Acoustic Bass"]
+    inst_list = [inst1, inst2, inst3, inst4, inst5]
     for sub_d in uid_directory:
         sub_d = uid + "/" + sub_d
         sublist = []
